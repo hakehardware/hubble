@@ -7,9 +7,17 @@ from src.helpers import Helpers
 from src.hubble import Hubble
 
 def check_config(config) -> bool:
-    if 'farmer_name' not in config:
+    if 'name' not in config:
         logger.error(f'Farmer Name is required and missing from the config. Please see README.')
         return False
+    
+    if 'mode' not in config:
+        logger.error(f'You must specify the mode, either "Farmer" or "Node"')
+        return False
+    else:
+        if config['mode'] != 'Farmer' and config['mode'] != 'Node':
+            logger.error(f'You must specify either "Farmer" or "Node" for the mode')
+            return False
     
     return True
 
