@@ -8,7 +8,6 @@ import src.constants as constants
 
 from src.logger import logger
 from src.discord_api import DiscordAPI
-from src.helpers import Helpers
 from src.log_parser import LogParser
 
 
@@ -216,9 +215,7 @@ class Hubble:
                     self.send_discord_notification('Plotting Complete', f'{self.config["name"]} farm index {event["Data"]["Farm Index"]} Replotting Complete')
 
                 if self.api:
-                    pass # self.database_api.update_farm_status(event)
-
-        
+                    pass # self.database_api.update_farm_status(event)   
 
     def run(self) -> None:
         logger.info(f'Initializing hubble {constants.VERSIONS["hubble"]} in {self.config["mode"]} mode.')
