@@ -94,18 +94,25 @@ class Hubble:
 
                 while True:
                     try:
-                        generator = container.logs(stdout=True, stderr=True, stream=True)
-                        for log in generator:
-                            log_str = log.decode('utf-8').strip()
-                            pattern = r"^(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{6}Z)\s*(?P<level>\w+)\s*(?P<data>.*)$"
-                            match = re.match(pattern, log_str)
+                        container.reload()
+                        if container.status == 'running':
+                            generator = container.logs(stdout=True, stderr=True, stream=True)
+                            for log in generator:
+                                log_str = log.decode('utf-8').strip()
+                                pattern = r"^(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{6}Z)\s*(?P<level>\w+)\s*(?P<data>.*)$"
+                                match = re.match(pattern, log_str)
 
-                            if match:
-                                self.evaluate_log(
-                                    match.group("timestamp"),
-                                    match.group("level"),
-                                    match.group("data")
-                                )
+                                if match:
+                                    self.evaluate_log(
+                                        match.group("timestamp"),
+                                        match.group("level"),
+                                        match.group("data")
+                                    )
+                        else:
+                            logger.warn(f'Docker Status: {container.status}')
+                            logger.warn('Container does not seem to be running. Sleeping 10 seconds before checking again...')
+                            time.sleep(10)
+
 
                     except Exception as e:
                         logger.error("Error in task:", exc_info=e)
@@ -122,6 +129,10 @@ class Hubble:
     def evaluate_log(self, timestamp, level, data):
         event = LogParser.get_log_event(self.config['name'], timestamp, level, data)
         publish_threshold = constants.PUBLISH_THRESHOLD
+
+        if level == 'ERROR':
+            if event['Age'] < publish_threshold:
+                self.send_discord_notification('Error', f'{self.config["name"]} received an error: {data}')
 
         if event['Event Type'] != 'Unknown':
             logger.info(f'{event}')
@@ -148,6 +159,8 @@ class Hubble:
 
             elif event['Event Type'] == 'Starting Workers':
                 # Update Farm Workers
+                if event['Age'] < publish_threshold:
+                    self.send_discord_notification('Starting Workers', f'{self.config["name"]} is starting.')
                 if self.api:
                     pass # self.database_api.update_farm_workers(event)
 
