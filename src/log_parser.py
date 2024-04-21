@@ -243,7 +243,8 @@ class LogParser:
                     }
                 }
         elif constants.KEY_EVENTS[17] in data:
-            pattern = r'Idle \((\d+) peers\), best: #(\d+).*finalized #(\d+).*⬇ (\d+\.\d+)kiB/s ⬆ (\d+\.\d+)kiB/s'
+            pattern = r'Idle \((\d+) peers\), best: #(\d+).*finalized #(\d+).*⬇ (\d+(?:\.\d+)?(?:kiB|MiB)/s) ⬆ (\d+(?:\.\d+)?(?:kiB|MiB)/s)'
+
             match = re.search(pattern, data)
 
             if match:
