@@ -6,6 +6,7 @@ import re
 import time
 import src.constants as constants
 
+import datetime
 from src.logger import logger
 from src.discord_api import DiscordAPI
 from src.log_parser import LogParser
@@ -20,7 +21,8 @@ class Hubble:
         self.image_version = None
 
         # environmental variable for discord alerts
-        self.discord_webhook = os.getenv('DISCORD_WEBHOOK')
+        self.discord_alert = os.getenv('DISCORD_ALERT')
+        self.discord_error = os.getenv('DISCORD_ERROR')
 
         # docker client
         self.docker_client = docker.from_env()
@@ -29,8 +31,15 @@ class Hubble:
         self.api = False
         self.discord = False
 
-    def send_discord_notification(self, title, message) -> None:
-        DiscordAPI.send_discord_message(self.discord_webhook, title, message)
+    def send_discord_notification(self, title, message, notification_type) -> None:
+        if notification_type == 'ERROR':
+            url = self.discord_error
+        elif notification_type == 'ALERT':
+            url = self.discord_alert
+        else:
+            url = self.discord_alert
+
+        DiscordAPI.send_discord_message(url, title, message, notification_type)
 
     def get_container(self) -> None:
         try:
@@ -96,18 +105,34 @@ class Hubble:
                     try:
                         container.reload()
                         if container.status == 'running':
-                            generator = container.logs(stdout=True, stderr=True, stream=True)
+                            five_minutes_ago = datetime.datetime.now() - datetime.timedelta(minutes=5)
+                            generator = container.logs(since=five_minutes_ago, stdout=True, stderr=True, stream=True)
                             for log in generator:
-                                log_str = log.decode('utf-8').strip()
-                                pattern = r"^(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{6}Z)\s*(?P<level>\w+)\s*(?P<data>.*)$"
-                                match = re.match(pattern, log_str)
+                                if self.config['mode'] == 'Farmer':
+                                    log_str = log.decode('utf-8').strip()
+                                    pattern = r"^(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+Z)\s*(?P<level>\w+)\s*(?P<data>.*)$"
+                                    match = re.match(pattern, log_str)
 
-                                if match:
-                                    self.evaluate_log(
-                                        match.group("timestamp"),
-                                        match.group("level"),
-                                        match.group("data")
-                                    )
+                                    if match:
+                                        self.evaluate_log(
+                                            match.group("timestamp"),
+                                            match.group("level"),
+                                            match.group("data")
+                                        )
+
+                                elif self.config['mode'] == 'Node':
+                                    log_str = log.decode('utf-8').strip()
+                                    pattern = r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z)\s+(\w+)\s+(.*)'
+                                    match = re.match(pattern, log_str)
+
+                                    if match:
+                                        timestamp, level, data = match.groups()
+
+                                        self.evaluate_log(
+                                            timestamp,
+                                            level,
+                                            data
+                                        )
                         else:
                             logger.warn(f'Docker Status: {container.status}')
                             logger.warn('Container does not seem to be running. Sleeping 10 seconds before checking again...')
@@ -132,10 +157,10 @@ class Hubble:
 
         if level == 'ERROR':
             if event['Age'] < publish_threshold:
-                self.send_discord_notification('Error', f'{self.config["name"]} received an error: {data}')
+                self.send_discord_notification('Error', f'{self.config["name"]} ({self.config["mode"]}) received an error: {data}', 'ERROR')
 
-        if event['Event Type'] != 'Unknown':
-            logger.info(f'{event}')
+        if event and event['Event Type'] != 'Unknown':
+            # logger.info(f'{event}')
 
             if event['Event Type'] == "Farm ID":
                 # Update Farm ID
@@ -160,21 +185,21 @@ class Hubble:
             elif event['Event Type'] == 'Starting Workers':
                 # Update Farm Workers
                 if event['Age'] < publish_threshold:
-                    self.send_discord_notification('Starting Workers', f'{self.config["name"]} is starting.')
+                    self.send_discord_notification('Starting Workers', f'{self.config["name"]} is starting.', 'ALERT')
                 if self.api:
                     pass # self.database_api.update_farm_workers(event)
 
             elif event['Event Type'] == 'Failed to Send Solution':
                 # Update Rewards for Failed Result
                 if event['Age'] < publish_threshold:
-                    self.send_discord_notification('Failed to Send Solution', f'{self.config["name"]} farm index {event["Data"]["Farm Index"]} failed to send solution!')
+                    self.send_discord_notification('Failed to Send Solution', f'{self.config["name"]} farm index {event["Data"]["Farm Index"]} failed to send solution!', 'ERROR')
                 if self.api:
                     pass # self.database_api.update_rewards(event)
 
             elif event['Event Type'] == 'Replotting Complete':
                 # Update Farm Status
                 if event['Age'] < publish_threshold:
-                    self.send_discord_notification('Replotting Complete', f'{self.config["name"]} farm index {event["Data"]["Farm Index"]} Replotting Complete')
+                    self.send_discord_notification('Replotting Complete', f'{self.config["name"]} farm index {event["Data"]["Farm Index"]} Replotting Complete', 'ALERT')
 
                 if self.api:
                     pass # self.database_api.update_farm_status(event)
@@ -192,7 +217,7 @@ class Hubble:
             elif event['Event Type'] == 'Reward':
                 # Update Rewards for Success Result
                 if event['Age'] < publish_threshold:
-                    self.send_discord_notification('Reward', f'{self.config["name"]} farm index {event["Data"]["Farm Index"]} Received a Reward')
+                    self.send_discord_notification('Reward', f'{self.config["name"]} farm index {event["Data"]["Farm Index"]} Received a Reward', 'ALERT')
 
                 if self.api:
                     pass # self.database_api.update_rewards(event)
@@ -225,10 +250,28 @@ class Hubble:
             elif event['Event Type'] == 'Plotting Complete':
                 # Update Farm Status
                 if event['Age'] < publish_threshold:
-                    self.send_discord_notification('Plotting Complete', f'{self.config["name"]} farm index {event["Data"]["Farm Index"]} Replotting Complete')
+                    self.send_discord_notification('Plotting Complete', f'{self.config["name"]} farm index {event["Data"]["Farm Index"]} Replotting Complete', 'ALERT')
 
                 if self.api:
-                    pass # self.database_api.update_farm_status(event)   
+                    pass # self.database_api.update_farm_status(event)  
+            elif event['Event Type'] == 'Idle Node':
+                # Update Sync
+                if self.api:
+                    pass # self.database_api.update_rewards(event)
+            elif event['Event Type'] == 'Claimed Vote':
+                if event['Age'] < publish_threshold:
+                    self.send_discord_notification('Claimed Vote', f'{self.config["name"]} ({self.config["mode"]}) claimed vote at slot {event["Data"]["Slot"]} for a reward.', 'ALERT')
+
+                if self.api:
+                    pass # self.database_api.update_rewards(event)
+            elif event['Event Type'] == 'Claimed Block':
+                if event['Age'] < publish_threshold:
+                    self.send_discord_notification('Claimed Block', f'{self.config["name"]} ({self.config["mode"]}) claimed block at slot {event["Data"]["Slot"]} for a reward.', 'ALERT')
+
+                if self.api:
+                    pass # self.database_api.update_rewards(event)
+        # else:
+        #     logger.info(event)
 
     def run(self) -> None:
         logger.info(f'Initializing hubble {constants.VERSIONS["hubble"]} in {self.config["mode"]} mode.')
@@ -241,10 +284,10 @@ class Hubble:
             logger.info('No API URL found. Skipping API Connection')
 
         # check if hubble should send discord messages
-        if self.discord_webhook:
+        if self.discord_alert and self.discord_error:
             self.discord = True
             logger.info('Sending discord start notification')
-            self.send_discord_notification('Hubble Started', f'Hubble has been started for {self.config["name"]}')
+            self.send_discord_notification('Hubble Started', f'Hubble has been started for {self.config["name"]}', 'INFO')
         else:
             logger.info('No Discord Webhook found. Not using Discord Notifications.')
 

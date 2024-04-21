@@ -242,6 +242,55 @@ class LogParser:
                         'Farm Index': int(match.group(1)),
                     }
                 }
+        elif constants.KEY_EVENTS[17] in data:
+            pattern = r'Idle \((\d+) peers\), best: #(\d+).*finalized #(\d+).*⬇ (\d+\.\d+)kiB/s ⬆ (\d+\.\d+)kiB/s'
+            match = re.search(pattern, data)
+
+            if match:
+                peers, best, finalized, down_speed, up_speed = match.groups()
+                event = {
+                    'Event Type': 'Idle Node',
+                    'Level': level,
+                    'Age': age,
+                    'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                    'Data': {
+                        'Peers': peers,
+                        'Best': best,
+                        'Finalized': finalized,
+                        'Down Speed': down_speed,
+                        'Up Speed': up_speed
+                    }
+                }
+        elif constants.KEY_EVENTS[18] in data:
+            pattern = r'slot=(\d+)'
+            match = re.search(pattern, data)
+
+            if match:
+                slot = int(match.group(1))
+                event = {
+                    'Event Type': 'Claimed Vote',
+                    'Level': level,
+                    'Age': age,
+                    'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                    'Data': {
+                        'Slot': slot,
+                    }
+                }
+        elif constants.KEY_EVENTS[19] in data:
+            pattern = r'slot=(\d+)'
+            match = re.search(pattern, data)
+            
+            if match:
+                slot = int(match.group(1))
+                event = {
+                    'Event Type': 'Claimed Block',
+                    'Level': level,
+                    'Age': age,
+                    'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                    'Data': {
+                        'Slot': slot,
+                    }
+                }
         else:
             event = {
                 'Event Type': 'Unknown',

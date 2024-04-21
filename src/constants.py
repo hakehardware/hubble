@@ -21,7 +21,10 @@ KEY_EVENTS = [
     'Public key:',                              #13
     'Allocated space:',                         #14
     'Directory:',                               #15
-    'Plotting complete'                         #16
+    'Plotting complete',                        #16
+    'Idle',                                     #17
+    'Claimed vote',                             #18
+    'Claimed block'
 ]
 
 PUBLISH_THRESHOLD = 50

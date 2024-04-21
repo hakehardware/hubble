@@ -7,20 +7,28 @@ from discord import Webhook
 class DiscordAPI:
 
     @staticmethod
-    async def send_message(url, message, title):
+    async def send_message(url, message, title, notification_type):
+
+        if notification_type == 'ALERT':
+            color = discord.Color.green()
+        elif notification_type == 'ERROR':
+            color = discord.Color.red()
+        else:
+            color = discord.Color.blue()
+
         async with aiohttp.ClientSession() as session:
             webhook = Webhook.from_url(url, session=session)
             embed = discord.Embed(
                 title=title,
                 description=message,
-                color=discord.Color.green()
+                color=color
             )
             await webhook.send(embed=embed)
 
-    def send_discord_message(url, message, title):
+    def send_discord_message(url, message, title, notification_type):
 
         loop = asyncio.new_event_loop()
         loop.run_until_complete(
-            DiscordAPI.send_message(url, message, title)
+            DiscordAPI.send_message(url, message, title, notification_type)
         )
         loop.close()
