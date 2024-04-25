@@ -150,7 +150,6 @@ class Hubble:
                                     
                                     if match:
                                         timestamp, level, data = match.groups()
-                                        logger.info(data)
 
                                         self.evaluate_log(
                                             timestamp,
