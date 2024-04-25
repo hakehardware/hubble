@@ -1,7 +1,7 @@
 VERSIONS = {
     'hubble': 'v0.0.2',
-    'Node Version': 'gemini-3h-2024-mar-29',
-    'Farmer Version': 'gemini-3h-2024-mar-29'
+    'Node Version': 'gemini-3h-2024-apr-24',
+    'Farmer Version': 'gemini-3h-2024-apr-24'
 }
 
 KEY_EVENTS = [

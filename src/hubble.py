@@ -36,20 +36,21 @@ class Hubble:
 
     def send_discord_notification(self, title, message, notification_type) -> None:
         try:
-            current_time = datetime.now()
+            if self.discord:
+                current_time = datetime.now()
 
-            if current_time - self.discord_last_sent >= timedelta(minutes=1):
-                if notification_type == 'ERROR':
-                    url = self.discord_error
-                elif notification_type == 'ALERT':
-                    url = self.discord_alert
+                if current_time - self.discord_last_sent >= timedelta(minutes=1):
+                    if notification_type == 'ERROR':
+                        url = self.discord_error
+                    elif notification_type == 'ALERT':
+                        url = self.discord_alert
+                    else:
+                        url = self.discord_alert
+
+                    DiscordAPI.send_discord_message(url, title, message, notification_type)
                 else:
-                    url = self.discord_alert
-
-                DiscordAPI.send_discord_message(url, title, message, notification_type)
-            else:
-                logger.warn('To prevent Discord rate limits, the last message was supressed.')
-                DiscordAPI.send_discord_message(url, 'Rate Limited', 'Messages have been supressed due to rate limits. Please check logs.', 'ERROR')
+                    logger.warn('To prevent Discord rate limits, the last message was supressed.')
+                    DiscordAPI.send_discord_message(url, 'Rate Limited', 'Messages have been supressed due to rate limits. Please check logs.', 'ERROR')
 
         except Exception as e:
             logger.warn(f'Unable to send discord message: {e}')
@@ -57,7 +58,6 @@ class Hubble:
     def get_container(self) -> None:
         try:
             containers = self.docker_client.containers.list(all=True)
-
             for container in containers:
                 if self.config['mode'] == 'Farmer':
                     if 'subspace/farmer' in container.image.tags[0]:
@@ -77,6 +77,7 @@ class Hubble:
 
             if not self.docker_container_id or not self.image_version:
                 logger.error('Unable to find the container. Are you sure it is running?')
+                sys.exit(1)
 
         except Exception as e:
             # Rollback the transaction if an error occurs
