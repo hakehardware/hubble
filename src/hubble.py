@@ -4,7 +4,6 @@ import sys
 import signal
 import re
 import time
-import datetime
 import src.constants as constants
 import json
 
@@ -112,9 +111,9 @@ class Hubble:
 
             # For the Node we don't need to go too far back since 
             if self.config["mode"] == "Node":
-                start_time = datetime.datetime.now() - datetime.timedelta(days=constants.NODE_BACKFILL)
+                start_time = datetime.now() - timedelta(days=constants.NODE_BACKFILL)
             elif self.config["mode"] == "Farmer":
-                start_time = datetime.datetime.now() - datetime.timedelta(days=constants.FARMER_BACKFILL)
+                start_time = datetime.now() - timedelta(days=constants.FARMER_BACKFILL)
 
             if container:
                 logger.info(f'Connected to container')
