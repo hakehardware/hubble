@@ -24,7 +24,8 @@ class LogParser:
                     'Data': {
                         'Farm Index': int(match.group(1)),
                         'Percentage Complete': match.group(2),
-                        'Current Sector': match.group(3)
+                        'Current Sector': match.group(3),
+                        'Replot': 0
                     }
                 }
         elif constants.KEY_EVENTS[1] in data:
@@ -123,7 +124,8 @@ class LogParser:
                     'Data': {
                         'Farm Index': int(match.group(1)),
                         'Percentage Complete': float(match.group(2)),
-                        'Current Sector': int(match.group(3))
+                        'Current Sector': int(match.group(3)),
+                        'Replot': 1
                     }
                 }
         elif constants.KEY_EVENTS[9] in data:
@@ -243,8 +245,7 @@ class LogParser:
                     }
                 }
         elif constants.KEY_EVENTS[17] in data:
-            pattern = r'Idle \((\d+) peers\), best: #(\d+).*finalized #(\d+).*⬇ (\d+(?:\.\d+)?(?:kiB|MiB)/s) ⬆ (\d+(?:\.\d+)?(?:kiB|MiB)/s)'
-
+            pattern = r'Idle \((\d+) peers\), best: #(\d+).*finalized #(\d+).*⬇ (\d+(?:\.\d+)?)(?:kiB|MiB)?/s ⬆ (\d+(?:\.\d+)?)(?:kiB|MiB)?/s'
             match = re.search(pattern, data)
 
             if match:

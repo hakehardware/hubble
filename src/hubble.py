@@ -11,7 +11,7 @@ import json
 from src.logger import logger
 from src.discord_api import DiscordAPI
 from src.log_parser import LogParser
-
+from datetime import datetime, timedelta
 
 class Hubble:
     def __init__(self, config) -> None:
@@ -28,20 +28,29 @@ class Hubble:
         # docker client
         self.docker_client = docker.from_env()
 
+        # docker rate limit prevention (1 message per minute)
+        self.discord_last_sent = datetime.now() - timedelta(minutes=1)
+
         # settings
         self.api = False
         self.discord = False
 
     def send_discord_notification(self, title, message, notification_type) -> None:
         try:
-            if notification_type == 'ERROR':
-                url = self.discord_error
-            elif notification_type == 'ALERT':
-                url = self.discord_alert
-            else:
-                url = self.discord_alert
+            current_time = datetime.now()
 
-            DiscordAPI.send_discord_message(url, title, message, notification_type)
+            if current_time - self.discord_last_sent >= timedelta(minutes=1):
+                if notification_type == 'ERROR':
+                    url = self.discord_error
+                elif notification_type == 'ALERT':
+                    url = self.discord_alert
+                else:
+                    url = self.discord_alert
+
+                DiscordAPI.send_discord_message(url, title, message, notification_type)
+            else:
+                logger.warn('To prevent Discord rate limits, the last message was supressed.')
+                DiscordAPI.send_discord_message(url, 'Rate Limited', 'Messages have been supressed due to rate limits. Please check logs.', 'ERROR')
 
         except Exception as e:
             logger.warn(f'Unable to send discord message: {e}')
@@ -115,14 +124,17 @@ class Hubble:
                     try:
                         # Container status is cached so we must reload it
                         container.reload()
-                        logger.info(f'Container status: {container.status}')
 
                         if container.status == 'running':
                             generator = container.logs(since=start_time, stdout=True, stderr=True, stream=True)
 
                             for log in generator:
+                                log_str = log.decode('utf-8').strip()
+
+                                if log_str == "Error grabbing logs: invalid character 'l' after object key:value pair":
+                                    logger.error('Due to how log rotation works, the log stream is broken until you redeploy your container.')
+
                                 if self.config['mode'] == 'Farmer':
-                                    log_str = log.decode('utf-8').strip()
                                     pattern = r"^(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+Z)\s*(?P<level>\w+)\s*(?P<data>.*)$"
                                     match = re.match(pattern, log_str)
 
@@ -134,12 +146,12 @@ class Hubble:
                                         )
 
                                 elif self.config['mode'] == 'Node':
-                                    log_str = log.decode('utf-8').strip()
                                     pattern = r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z)\s+(\w+)\s+(.*)'
                                     match = re.match(pattern, log_str)
-
+                                    
                                     if match:
                                         timestamp, level, data = match.groups()
+                                        logger.info(data)
 
                                         self.evaluate_log(
                                             timestamp,
@@ -147,16 +159,16 @@ class Hubble:
                                             data
                                         )
                         else:
-                            logger.warn('Container does not seem to be running. Sleeping 10 seconds before checking again...')
+                            logger.warn(f'Container currently has a status of {container.status}. Sleeping 10 seconds before checking again...')
                             time.sleep(10)
 
 
                     except Exception as e:
-                        logger.error("Error in task:", exc_info=e)
+                        logger.error("Error in log stream loop:", exc_info=e)
                         time.sleep(1)
 
         except Exception as e:
-            logger.error("Error in task:", exc_info=e)
+            logger.error("Error in log stream:", exc_info=e)
 
     def signal_handler(self, sig, frame) -> None:
         print('SIGINT Received, shutting down stream...')
@@ -174,7 +186,7 @@ class Hubble:
 
             if not event:
                 logger.error('Unable to evaluate event. This happens the parser cannot find a match for a known event.')
-                logger.info(f"Unevaluated Data: {'Data': data, 'Level': level, 'Timestamp': timestamp}")
+                logger.info(f"Unevaluated Data: {data}")
 
             elif event['Event Type'] != 'Unknown':
                 # logger.info(f'{event}')
