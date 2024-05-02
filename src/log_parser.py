@@ -1,6 +1,7 @@
 import src.constants as constants
 import datetime
 import re
+from src.logger import logger
 
 from typing import Dict
 from src.helpers import Helpers
@@ -10,7 +11,9 @@ class LogParser:
         event = None
 
         parsed_timestamp = timestamp.split('.')[0] + '.' + timestamp.split('.')[1][0:3]
-        age = Helpers.check_age_of_timestamp(parsed_timestamp)
+        formatted_timestamp = datetime.datetime.fromisoformat(parsed_timestamp)
+
+        age = Helpers.get_age_of_timestamp(formatted_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f'))
 
         if constants.KEY_EVENTS[0] in data:
             pattern = r'farm_index=(\d+).*?(\d+\.\d+)% complete.*?sector_index=(\d+)'        
@@ -18,16 +21,19 @@ class LogParser:
             if match:
                 event = {
                     'Event Type': 'Plotting Sector',
-                    'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                    'Datetime': formatted_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f'),
                     'Level': level,
                     'Age': age,
+                    'Farmer Name': name,
                     'Data': {
                         'Farm Index': int(match.group(1)),
-                        'Percentage Complete': match.group(2),
-                        'Current Sector': match.group(3),
-                        'Replot': 0
+                        'Plot Percentage': match.group(2),
+                        'Plot Current Sector': match.group(3),
+                        'Plot Type': 'Plot',
+                        'Farm Status': 'Plotting'
                     }
                 }
+                
         elif constants.KEY_EVENTS[1] in data:
             pattern = r'Piece cache sync (\d+\.\d+)% complete'
             match = re.search(pattern, data)
@@ -37,18 +43,21 @@ class LogParser:
                     'Event Type': 'Piece Cache Sync',
                     'Level': level,
                     'Age': age,
-                    'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                    'Datetime': formatted_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                    'Farmer Name': name,
                     'Data': {
-                        'Percentage Complete': float(match.group(1)),
-                        'Farmer Name': name
+                        'Farmer Piece Cache Percent': float(match.group(1)),
+                        'Farmer Status': 'Syncronizing'
                     }
                 }
+
         elif constants.KEY_EVENTS[2] in data:
             event = {
                     'Event Type': 'Plotting Paused',
                     'Level': level,
                     'Age': age,
-                    'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                    'Datetime': formatted_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                    'Farmer Name': name,
                     'Data': {
                         'Farmer Name': name
                     }
@@ -58,7 +67,8 @@ class LogParser:
                 'Event Type': 'Plotting Resumed',
                 'Level': level,
                 'Age': age,
-                'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                'Datetime': formatted_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                'Farmer Name': name,
                 'Data': {
                     'Farmer Name': name
                 }
@@ -68,9 +78,12 @@ class LogParser:
                 'Event Type': 'Finished Piece Cache Sync',
                 'Level': level,
                 'Age': age,
-                'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                'Datetime': formatted_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                'Farmer Name': name,
                 'Data': {
-                    'Farmer Name': name
+                    'Farmer Name': name,
+                    'Farmer Piece Cache Status': 'Complete',
+                    'Farmer Piece Cache Percent': 100.0
                 }
             }
         elif constants.KEY_EVENTS[5] in data:
@@ -81,10 +94,12 @@ class LogParser:
                 'Event Type': 'Reward',
                 'Level': level,
                 'Age': age,
-                'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                'Datetime': formatted_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                'Farmer Name': name,
                 'Data': {
                     'Farm Index': match.group(1),
-                    'Hash': match.group(2)
+                    'Reward Hash': match.group(2),
+                    'Reward Type': 'Reward'
                 }
             }
         elif constants.KEY_EVENTS[6] in data:
@@ -97,7 +112,8 @@ class LogParser:
                 'Event Type': 'New Farm Identified',
                 'Level': level,
                 'Age': age,
-                'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                'Datetime': formatted_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                'Farmer Name': name,
                 'Data': {
                     'Farm Index': int(match.group(1))
                 }
@@ -107,9 +123,11 @@ class LogParser:
                 'Event Type': 'Synchronizing Piece Cache',
                 'Level': level,
                 'Age': age,
-                'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                'Datetime': formatted_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                'Farmer Name': name,
                 'Data': {
-                    'Farmer Name': name
+                    'Farmer Name': name,
+                    'Farmer Piece Cache Status': 'Synchronizing'
                 }
             }
         elif constants.KEY_EVENTS[8] in data:
@@ -120,12 +138,14 @@ class LogParser:
                     'Event Type': 'Replotting Sector',
                     'Level': level,
                     'Age': age,
-                    'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                    'Datetime': formatted_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                    'Farmer Name': name,
                     'Data': {
                         'Farm Index': int(match.group(1)),
-                        'Percentage Complete': float(match.group(2)),
-                        'Current Sector': int(match.group(3)),
-                        'Replot': 1
+                        'Plot Percentage': float(match.group(2)),
+                        'Plot Current Sector': int(match.group(3)),
+                        'Plot Type': 'Replot',
+                        'Farm Status': 'Replotting'
                     }
                 }
         elif constants.KEY_EVENTS[9] in data:
@@ -136,11 +156,17 @@ class LogParser:
                     'Event Type': 'Replotting Complete',
                     'Level': level,
                     'Age': age,
-                    'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                    'Datetime': formatted_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                    'Farmer Name': name,
                     'Data': {
                         'Farm Index': int(match.group(1)),
+                        'Farm Status': 'Farming',
+                        'Plot Percentage': 100.0,
+                        'Plot Current Sector': None,
+                        'Plot Type': 'Replot',
                     }
                 }
+
         elif constants.KEY_EVENTS[10] in data:
             pattern = r"farm_index=(\d+)"
             match = re.search(pattern, data)
@@ -149,10 +175,12 @@ class LogParser:
                     'Event Type': 'Failed to Send Solution',
                     'Level': level,
                     'Age': age,
-                    'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                    'Datetime': formatted_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                    'Farmer Name': name,
                     'Data': {
                         'Farm Index': int(match.group(1)),
-                        'Hash': None
+                        'Reward Hash': None,
+                        'Reward Type': 'Failed'
                     }
                 }
         elif constants.KEY_EVENTS[11] in data:
@@ -163,10 +191,11 @@ class LogParser:
                     'Event Type': 'Starting Workers',
                     'Level': level,
                     'Age': age,
-                    'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                    'Datetime': formatted_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                    'Farmer Name': name,
                     'Data': {
-                        'Number of Workers': int(match.group(1)),
-                        'Farmer Name': name
+                        'Farmer Workers': int(match.group(1)),
+                        'Farmer Piece Cache Status': 'Starting'
                     }
                 }
         elif constants.KEY_EVENTS[12] in data:
@@ -177,10 +206,12 @@ class LogParser:
                     'Event Type': 'Farm ID',
                     'Level': level,
                     'Age': age,
-                    'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                    'Datetime': formatted_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                    'Farmer Name': name,
                     'Data': {
                         'Farm Index': int(match.group(1)),
                         'Farm ID': match.group(2),
+                        'Farm Status': 'Initializing'
                     }
                 }
         elif constants.KEY_EVENTS[13] in data:
@@ -191,7 +222,8 @@ class LogParser:
                     'Event Type': 'Farm Public Key',
                     'Level': level,
                     'Age': age,
-                    'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                    'Datetime': formatted_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                    'Farmer Name': name,
                     'Data': {
                         'Farm Index': int(match.group(1)),
                         'Farm Public Key': match.group(2),
@@ -211,12 +243,14 @@ class LogParser:
                     'Event Type': 'Farm Allocated Space',
                     'Level': level,
                     'Age': age,
-                    'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                    'Datetime': formatted_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                    'Farmer Name': name,
                     'Data': {
                         'Farm Index': int(match.group(1)),
-                        'Allocated Space Primary': allocated_gib                    
+                        'Farm Allocated Space': allocated_gib                    
                     }
                 }
+
         elif constants.KEY_EVENTS[15] in data:
             pattern = r'farm_index=(\d+).*Directory:\s+(.+)'
             match = re.search(pattern, data)
@@ -225,10 +259,11 @@ class LogParser:
                     'Event Type': 'Farm Directory',
                     'Level': level,
                     'Age': age,
-                    'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                    'Datetime': formatted_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                    'Farmer Name': name,
                     'Data': {
                         'Farm Index': int(match.group(1)),
-                        'Directory': match.group(2)
+                        'Farm Directory': match.group(2)
                     }
                 }
         elif constants.KEY_EVENTS[16] in data:
@@ -239,9 +274,14 @@ class LogParser:
                     'Event Type': 'Plotting Complete',
                     'Level': level,
                     'Age': age,
-                    'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                    'Datetime': formatted_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                    'Farmer Name': name,
                     'Data': {
                         'Farm Index': int(match.group(1)),
+                        'Farm Status': 'Farming',
+                        'Plot Percentage': 100.0,
+                        'Plot Current Sector': None,
+                        'Plot Type': 'Plot',
                     }
                 }
         elif constants.KEY_EVENTS[17] in data:
@@ -254,7 +294,8 @@ class LogParser:
                     'Event Type': 'Idle Node',
                     'Level': level,
                     'Age': age,
-                    'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                    'Datetime': formatted_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                    'Node Name': name,
                     'Data': {
                         'Peers': peers,
                         'Best': best,
@@ -273,7 +314,8 @@ class LogParser:
                     'Event Type': 'Claimed Vote',
                     'Level': level,
                     'Age': age,
-                    'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                    'Datetime': formatted_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                    'Node Name': name,
                     'Data': {
                         'Slot': slot,
                     }
@@ -288,7 +330,8 @@ class LogParser:
                     'Event Type': 'Claimed Block',
                     'Level': level,
                     'Age': age,
-                    'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                    'Datetime': formatted_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                    'Node Name': name,
                     'Data': {
                         'Slot': slot,
                     }
@@ -298,7 +341,8 @@ class LogParser:
                 'Event Type': 'Unknown',
                 'Level': level,
                 'Age': age,
-                'Datetime': datetime.datetime.strptime(parsed_timestamp, '%Y-%m-%dT%H:%M:%S.%f'),
+                'Datetime': formatted_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                'Server Name': name,
                 'data': {
                     'log': data
                 }

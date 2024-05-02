@@ -1,7 +1,7 @@
 VERSIONS = {
-    'hubble': 'v0.0.2',
-    'Node Version': 'gemini-3h-2024-apr-24',
-    'Farmer Version': 'gemini-3h-2024-apr-24'
+    'hubble': 'v0.0.4',
+    'Node Version': 'gemini-3h-2024-may-01',
+    'Farmer Version': 'gemini-3h-2024-may-01'
 }
 
 KEY_EVENTS = [
@@ -26,8 +26,3 @@ KEY_EVENTS = [
     'Claimed vote',                             #18
     'Claimed block'
 ]
-
-PUBLISH_THRESHOLD = 5
-NODE_BACKFILL = 2
-FARMER_BACKFILL = 60
-DISPLAY_UNKNOWN = False

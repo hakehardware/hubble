@@ -8,14 +8,12 @@ from src.logger import logger
 class DiscordAPI:
 
     @staticmethod
-    async def send_message(url, message, title, notification_type) -> None:
+    async def send_message(url, message, title, alert_type) -> None:
 
-        if notification_type == 'ALERT':
-            color = discord.Color.green()
-        elif notification_type == 'ERROR':
+        if alert_type == 'error':
             color = discord.Color.red()
         else:
-            color = discord.Color.blue()
+            color = discord.Color.green()
 
         async with aiohttp.ClientSession() as session:
             webhook = Webhook.from_url(url, session=session)
@@ -26,11 +24,12 @@ class DiscordAPI:
             )
             await webhook.send(embed=embed)
 
-    def send_discord_message(url, message, title, notification_type):
+    @staticmethod
+    def send_discord_message(url, message, title, alert_type):
         try:
             loop = asyncio.new_event_loop()
             loop.run_until_complete(
-                DiscordAPI.send_message(url, message, title, notification_type)
+                DiscordAPI.send_message(url, message, title, alert_type)
             )
             loop.close()
         except Exception as e:
