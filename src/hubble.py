@@ -1,19 +1,16 @@
 import docker
-import os
+
 import sys
 import signal
 import re
 import time
 import src.constants as constants
-import json
-import requests
 
 from src.logger import logger
 
 from src.nexus_api import NexusAPI
 from src.log_parser import LogParser
 from datetime import datetime, timedelta
-from src.event_handler import EventHandler
 from src.rate_limiter import RateLimiter
 from src.helpers import Helpers
 
@@ -287,7 +284,7 @@ class Hubble:
                     # UPDATE REWARDS
                     elif event['Event Type'] == 'Failed to Send Solution':
                         if event['Age'] < self.discord_publish_threshold:
-                            Helpers.send_discord_notification(self.discord_alerts, 'Failed to Send Solution', f'{self.name} farm index {event["Data"]["Farm Index"]} failed to send solution!', 'reward')
+                            Helpers.send_discord_notification(self.discord_alerts, 'Failed to Send Solution', f'{self.name} farm index {event["Data"]["Farm Index"]} failed to send solution!', 'reward', self.rate_limiter)
                         if self.nexus_enabled:
                             logger.info('Updating Reward Failed to Send Solution')
                             NexusAPI.update_farmer(self.nexus_url, event)
@@ -295,7 +292,7 @@ class Hubble:
                     # UPDATE FARM AND PLOT
                     elif event['Event Type'] == 'Replotting Complete':
                         if event['Age'] < self.discord_publish_threshold:
-                            Helpers.send_discord_notification(self.discord_alerts, 'Replotting Complete', f'{self.name} farm index {event["Data"]["Farm Index"]} Replotting Complete', 'farm')
+                            Helpers.send_discord_notification(self.discord_alerts, 'Replotting Complete', f'{self.name} farm index {event["Data"]["Farm Index"]} Replotting Complete', 'farm', self.rate_limiter)
                         if self.nexus_enabled:
                             logger.info('Updating Farm Status: Replotting Complete')
                             NexusAPI.update_farm(self.nexus_url, event)
@@ -317,7 +314,7 @@ class Hubble:
                     # INSERT REWARD
                     elif event['Event Type'] == 'Reward':
                         if event['Age'] < self.discord_publish_threshold:
-                            Helpers.send_discord_notification(self.discord_alerts, 'Reward', f'{self.name} farm index {event["Data"]["Farm Index"]} Received a Reward', 'reward')
+                            Helpers.send_discord_notification(self.discord_alerts, 'Reward', f'{self.name} farm index {event["Data"]["Farm Index"]} Received a Reward', 'reward', self.rate_limiter)
 
                         if self.nexus_enabled:
                             NexusAPI.insert_reward(self.nexus_url, event)
@@ -352,7 +349,7 @@ class Hubble:
                     elif event['Event Type'] == 'Plotting Complete':
                         # Update Farm Status
                         if event['Age'] < self.discord_publish_threshold:
-                            Helpers.send_discord_notification(self.discord_alerts, 'Plotting Complete', f'{self.name} farm index {event["Data"]["Farm Index"]} Replotting Complete', 'plot')
+                            Helpers.send_discord_notification(self.discord_alerts, 'Plotting Complete', f'{self.name} farm index {event["Data"]["Farm Index"]} Replotting Complete', 'plot', self.rate_limiter)
 
                         if self.nexus_enabled:
                             logger.info('Updating Farm Status & Plot: Replotting Sector')
@@ -392,10 +389,6 @@ class Hubble:
 
         # Initialize the Discord Notifications
         self.initialize_discord()
-
-        NexusAPI.delete_all_plots(self.nexus_url)
-        NexusAPI.delete_all_rewards(self.nexus_url)
-        NexusAPI.delete_all_events(self.nexus_url)
 
         # Get Container information
         self.get_container()

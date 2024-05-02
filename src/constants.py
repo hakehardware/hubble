@@ -6,12 +6,12 @@ VERSIONS = {
 
 KEY_EVENTS = [
     'Plotting sector',                          #0
-    'Piece cache sync',                         #1
-    'pausing plotting',                         #2
+    'Piece cache sync',                         #1 maybe deprecated
+    'pausing plotting',                         #2 maybe deprecated
     'resuming plotting',                        #3
     'Finished piece cache synchronization',     #4
     'Successfully signed reward hash',          #5
-    'Single disk farm',                         #6
+    'Single disk farm',                         #6 maybe deprecated
     'Synchronizing piece cache',                #7
     'Replotting sector',                        #8
     'Replotting complete',                      #9

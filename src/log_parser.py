@@ -195,7 +195,8 @@ class LogParser:
                     'Farmer Name': name,
                     'Data': {
                         'Farmer Workers': int(match.group(1)),
-                        'Farmer Piece Cache Status': 'Starting'
+                        'Farmer Piece Cache Status': 'Starting',
+                        'Farmer Piece Cache Percent': 0.0
                     }
                 }
         elif constants.KEY_EVENTS[12] in data:
@@ -211,7 +212,7 @@ class LogParser:
                     'Data': {
                         'Farm Index': int(match.group(1)),
                         'Farm ID': match.group(2),
-                        'Farm Status': 'Initializing'
+                        'Farm Status': 'Farming'
                     }
                 }
         elif constants.KEY_EVENTS[13] in data:
