@@ -182,10 +182,10 @@ class Hubble:
                         container.reload()
                         if container.status == 'running':
 
-                            start_datetime = Helpers.get_prev_date(10, 'minutes')
-                            logger.info(f"Getting logs since {start_datetime}")
+                            # start_datetime = Helpers.get_prev_date(10, 'minutes')
+                            # logger.info(f"Getting logs since {start_datetime}")
 
-                            generator = container.logs(since=start_datetime, stdout=True, stderr=True, stream=True)
+                            generator = container.logs(stdout=True, stderr=True, stream=True)
 
                             for log in generator:
                                 log_str = log.decode('utf-8').strip()
