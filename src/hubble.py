@@ -63,7 +63,7 @@ class Hubble:
                 NexusAPI.insert_farmer(self.nexus_url, self.name)
 
             elif self.mode == 'Node':
-                logger.warn('Nexus not configured for Nodes at time')
+                NexusAPI.insert_node(self.nexus_url, self.name)
 
         except Exception as e:
             logger.error(f'Error registering with Nexus API: {e}')
@@ -181,7 +181,11 @@ class Hubble:
                         # Container status is cached so we must reload it
                         container.reload()
                         if container.status == 'running':
-                            generator = container.logs(stdout=True, stderr=True, stream=True)
+
+                            start_datetime = Helpers.get_prev_date(10, 'minutes')
+                            logger.info(f"Getting logs since {start_datetime}")
+
+                            generator = container.logs(since=start_datetime, stdout=True, stderr=True, stream=True)
 
                             for log in generator:
                                 log_str = log.decode('utf-8').strip()
@@ -245,7 +249,10 @@ class Hubble:
     # Handle Events
     def handle_event(self, event):
             if self.nexus_enabled:
-                result = NexusAPI.insert_event(self.nexus_url, event)
+                if self.mode == 'Farmer':
+                    result = NexusAPI.insert_farmer_event(self.nexus_url, event)
+                elif self.mode == 'Node':
+                    result = NexusAPI.insert_node_event(self.nexus_url, event)
 
                 if result.get('Inserted Event'):
 
@@ -347,7 +354,6 @@ class Hubble:
                             NexusAPI.insert_plot(self.nexus_url, event)
 
                     elif event['Event Type'] == 'Plotting Complete':
-                        # Update Farm Status
                         if event['Age'] < self.discord_publish_threshold:
                             Helpers.send_discord_notification(self.discord_alerts, 'Plotting Complete', f'{self.name} farm index {event["Data"]["Farm Index"]} Replotting Complete', 'plot', self.rate_limiter)
 
@@ -356,22 +362,26 @@ class Hubble:
                             NexusAPI.update_farm(self.nexus_url, event)
                             NexusAPI.insert_plot(self.nexus_url, event)
 
-                    # elif event['Event Type'] == 'Idle Node':
-                    #     # Update Sync
-                    #     if self.api:
-                    #         pass # self.database_api.update_rewards(event)
-                    # elif event['Event Type'] == 'Claimed Vote':
-                    #     if event['Age'] < self.discord_publish_threshold:
-                    #         self.send_discord_notification('Claimed Vote', f'{self.config["name"]} ({self.config["mode"]}) claimed vote at slot {event["Data"]["Slot"]} for a reward.', 'ALERT')
+                    elif event['Event Type'] == 'Idle Node':
+                        if self.nexus_enabled:
+                            logger.info('Inserting Consensus')
+                            NexusAPI.insert_consensus(self.nexus_url, event)
 
-                    #     if self.api:
-                    #         pass # self.database_api.update_rewards(event)
-                    # elif event['Event Type'] == 'Claimed Block':
-                    #     if event['Age'] < self.discord_publish_threshold:
-                    #         self.send_discord_notification('Claimed Block', f'{self.config["name"]} ({self.config["mode"]}) claimed block at slot {event["Data"]["Slot"]} for a reward.', 'ALERT')
+                    elif event['Event Type'] == 'Claimed Vote':
+                        if event['Age'] < self.discord_publish_threshold:
+                            Helpers.send_discord_notification(self.discord_alerts, 'Claimed Vote', f'{self.name} ({self.mode}) claimed vote at slot {event["Data"]["Slot"]} for a reward.', 'claim', self.rate_limiter)
 
-                    #     if self.api:
-                    #         pass # self.database_api.update_rewards(event)
+                        if self.nexus_enabled:
+                            logger.info('Inserting Claim: Vote')
+                            NexusAPI.insert_claim(self.nexus_url, event)
+
+                    elif event['Event Type'] == 'Claimed Block':
+                        if event['Age'] < self.discord_publish_threshold:
+                            Helpers.send_discord_notification(self.discord_alerts, 'Claimed Block', f'{self.name} ({self.mode}) claimed block at slot {event["Data"]["Slot"]} for a reward.', 'claim', self.rate_limiter)
+
+                        if self.nexus_enabled:
+                            logger.info('Inserting Claim: Block')
+                            NexusAPI.insert_claim(self.nexus_url, event)
 
                 else:
                     pass

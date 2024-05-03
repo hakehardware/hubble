@@ -1,7 +1,6 @@
 import os
 import yaml
 import datetime
-
 from src.discord_api import DiscordAPI
 from src.logger import logger
 
@@ -43,7 +42,6 @@ class Helpers:
         return minutes_diff
     
     @staticmethod
-    # Sends a discord notification
     def send_discord_notification(discord_alerts, title, message, alert_type, rate_limiter) -> None:
         try:
             if rate_limiter.can_send_message():
@@ -70,3 +68,19 @@ class Helpers:
 
         except Exception as e:
             logger.warn(f'Unable to send discord message: {e}')
+
+    @staticmethod
+    def get_prev_date(time_delta, unit):
+        unit = unit.lower()
+        if unit not in ['seconds', 'minutes', 'hours']:
+            raise ValueError("Invalid unit. Please choose 'seconds', 'minutes', or 'hours'.")
+
+        if unit == 'seconds':
+            delta = datetime.timedelta(seconds=time_delta)
+        elif unit == 'minutes':
+            delta = datetime.timedelta(minutes=time_delta)
+        elif unit == 'hours':
+            delta = datetime.timedelta(hours=time_delta)
+
+        current_time = datetime.datetime.now()
+        return current_time - delta

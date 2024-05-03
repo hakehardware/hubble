@@ -298,6 +298,7 @@ class LogParser:
                     'Datetime': formatted_timestamp.strftime('%Y-%m-%d %H:%M:%S.%f'),
                     'Node Name': name,
                     'Data': {
+                        'Status': 'Synced',
                         'Peers': peers,
                         'Best': best,
                         'Finalized': finalized,
@@ -319,6 +320,7 @@ class LogParser:
                     'Node Name': name,
                     'Data': {
                         'Slot': slot,
+                        'Claim Type': 'Vote'
                     }
                 }
         elif constants.KEY_EVENTS[19] in data:
@@ -335,6 +337,7 @@ class LogParser:
                     'Node Name': name,
                     'Data': {
                         'Slot': slot,
+                        'Claim Type': 'Block'
                     }
                 }
         else:
