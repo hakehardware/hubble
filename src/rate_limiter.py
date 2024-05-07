@@ -20,6 +20,3 @@ class RateLimiter:
     def send_message(self):
         if self.can_send_message():
             self.timestamps.append(time.time())
-            print("Message sent!")
-        else:
-            print("Rate limit exceeded. Message not sent.")

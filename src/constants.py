@@ -1,5 +1,5 @@
 VERSIONS = {
-    'hubble': 'v0.0.4',
+    'hubble': 'v0.0.5',
     'Node Version': 'gemini-3h-2024-may-01',
     'Farmer Version': 'gemini-3h-2024-may-01'
 }

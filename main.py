@@ -6,21 +6,6 @@ from src.logger import logger
 from src.helpers import Helpers
 from src.hubble import Hubble
 
-def check_config(config) -> bool:
-    if 'name' not in config:
-        logger.error(f'Farmer Name is required and missing from the config. Please see README.')
-        return False
-    
-    if 'mode' not in config:
-        logger.error(f'You must specify the mode, either "Farmer" or "Node"')
-        return False
-    else:
-        if config['mode'] != 'Farmer' and config['mode'] != 'Node':
-            logger.error(f'You must specify either "Farmer" or "Node" for the mode')
-            return False
-    
-    return True
-
 def main():
 
     # get arguments
@@ -36,12 +21,17 @@ def main():
     if not config:
         logger.error(f'Error loading config from {args.config_file}. Are you sure you put in the right location?')
         sys.exit(1)
-    
-    # confirm that all required fields are present in the config
-    valid_config = check_config(config)
-    if not valid_config:
+
+    missing_values = False
+    for key, value in config.items():
+        if value is None:
+            logger.error(f"None value found at key: {key}")
+            missing_values = True
+
+    if missing_values:
         sys.exit(1)
-    
+
+       
     # config looks good, proceed
     logger.info(f'Configuration loaded successfully: {config}')
 
