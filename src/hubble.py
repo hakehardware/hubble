@@ -53,12 +53,23 @@ class Hubble:
                         match = container
 
             if match:
-                network_mode = match.attrs.get('HostConfig').get('NetworkMode')
+                for key in match.attrs['NetworkSettings']['Networks']:
+                    network_mode = key
+
+                # logger.info(json.dumps(match.attrs, indent=4))
                 self.docker_data['Container ID'] = match.id
                 self.docker_data['Image Version'] = match.image.labels["org.opencontainers.image.version"]
                 self.docker_data['Container Status'] = match.status
                 self.docker_data['Container Started At'] = match.attrs.get('State').get('StartedAt')
                 self.docker_data['Container IP'] = match.attrs.get('NetworkSettings').get('Networks')[network_mode].get('IPAddress')
+
+                if self.config.get('mode') == 'Farmer':
+                    for value in match.attrs['Args']:
+                        if 'ws://' in value:
+                            ip_pattern = r'\b(?:\d{1,3}\.){3}\d{1,3}\b'
+                            ip_address = re.search(ip_pattern, value)
+                            self.docker_data['Node IP'] = ip_address.group()
+                
                 logger.info(f"Docker: {self.docker_data}")
 
             else:
@@ -74,7 +85,7 @@ class Hubble:
             nodes = SpaceportAPI.get_nodes(self.config.get('spaceport_url'))
 
             if nodes == None:
-                logger.error('Failed to register node. Exiting')
+                logger.error('Failed to register Node. Exiting')
                 sys.exit(1)
 
             logger.info(f"Found {len(nodes)} Node(s). Checking if current Node is already registered")
@@ -101,7 +112,6 @@ class Hubble:
             else:
                 logger.info('Registering Node with Spaceport API')
                 SpaceportAPI.insert_node(self.config.get('spaceport_url'), {
-                    'name': self.config.get('name'),
                     'status': 'Initializing',
                     'active': True,
                     'hostIp': self.config.get('host_ip'),
@@ -116,8 +126,56 @@ class Hubble:
             sys.exit(1)
 
     def register_farmer(self) -> None:
-        pass
+        try:
+            farmers = SpaceportAPI.get_farmers(self.config.get('spaceport_url'))
+            
+            if farmers == None:
+                logger.error('Failed to register Farmer. Exiting')
+                sys.exit(1)
 
+            logger.info(f"Found {len(farmers)} Farmer(s). Checking if current Farmer is already registered")
+            nodes = SpaceportAPI.get_nodes(self.config.get('spaceport_url'))
+
+            node = None
+
+            for node in nodes:
+                if node['hostIp'] == self.docker_data.get('Node IP') or node['containerIp'] == self.docker_data.get('Node IP'):
+                    node = node['name']
+
+            farmer_exists = False
+            for farmer in farmers:
+                if farmer.get('name') == self.config.get('name'):
+                    farmer_exists = True
+                    break
+            
+            if farmer_exists:
+                logger.info('Found Farmer. Updating Farmer registration')
+                SpaceportAPI.update_farmer(self.config.get('spaceport_url'), {
+                    'name': self.config.get('name'),
+                    'active': True,
+                    'pieceCachePct': None,
+                    'workers': None,
+                    'nodeIp': self.docker_data.get('Node IP'),
+                    'containerIp': self.docker_data.get('Container IP'),
+                    'nodeName': node,
+                    'version': self.docker_data.get('Image Version'),
+                    'containerStartedAt': self.docker_data.get('Container Started At')
+                })
+            else:
+                logger.info('Registering Farmer with Spaceport API')
+                SpaceportAPI.insert_farmer(self.config.get('spaceport_url'), {
+                    'active': True,
+                    'nodeIp': self.docker_data.get('Node IP'),
+                    'containerIp': self.docker_data.get('Container IP'),
+                    'nodeName': node,
+                    'version': self.docker_data.get('Image Version'),
+                    'containerStartedAt': self.docker_data.get('Container Started At')
+                })
+
+        except Exception as e:
+            logger.error(f'Error registering Node with Spaceport API: {e}')
+            sys.exit(1)
+    
     # Check version compatibility
     def check_version(self) -> None:
         try:
@@ -203,10 +261,7 @@ class Hubble:
                         container.reload()
                         if container.status == 'running':
 
-                            start_datetime = Helpers.get_prev_date(1, 'minutes')
-                            logger.info(f"Getting logs since {start_datetime}")
-
-                            generator = container.logs(since=start_datetime, stdout=True, stderr=True, stream=True)
+                            generator = container.logs(stdout=True, stderr=True, stream=True)
 
                             for log in generator:
                                 log_str = log.decode('utf-8').strip()

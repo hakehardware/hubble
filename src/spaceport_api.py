@@ -36,7 +36,7 @@ class SpaceportAPI:
                 logger.error(f"S-API: Error inserting Node {json_data.get('error')}")
 
         except Exception as e:
-            logger.error(f'S-API: Error inserting Node via Nexus API')
+            logger.error(f'S-API: Error inserting Node via Nexus API: {e}')
 
     @staticmethod
     def update_node(base_url, data):
@@ -129,197 +129,88 @@ class SpaceportAPI:
             if response.status_code == 201:
                 logger.info("S-API: Node Event Inserted")
                 return True
-                    
+            elif response.status_code == 200:
+                logger.info(f"S-API: {json_data.get('message')}")
             else:
-                logger.error(f"S-API: Error inserting Node Event {json_data}")
+                logger.warn(f"S-API: Error inserting Node Event {json_data}")
 
         except Exception as e:
             logger.error(f'S-API: Error inserting Node Event via Nexus API: {e}')
 
-
-
-
-
-
-
-
-
-
-    # FARMER
-    @staticmethod
-    def insert_farmer(base_url, farmer_name):
+    def insert_farmer_event(base_url, event):
         try:
-            local_url = f'{base_url}/insert/farmer'
+            local_url = f'{base_url}/farmerEvents'
 
             data = {
-                'Farmer Name': farmer_name
+                'eventDatetime': event.get('Datetime'),
+                'farmerName': event.get('Farmer Name'),
+                'type': event.get('Event Type'),
+                'data': json.dumps(event.get('Data'))
             }
 
             response = requests.post(local_url, json=data)
             json_data = response.json()
 
-            success = json_data.get('Success')
-            message = json_data.get('Message')
-
-            if success:
-                logger.info(f"NEXUS: {message}")
+            if response.status_code == 201:
+                logger.info("S-API: Farmer Event Inserted")
+                return True
+            
+            elif response.status_code == 200:
+                logger.info(f"S-API: {json_data.get('message')}")
+                    
             else:
-                logger.error(f"NEXUS: {message}")
+                logger.warn(f"S-API: Error inserting Farmer Event {json_data}")
 
         except Exception as e:
-            logger.error(f'Error inserting farmer via Nexus API')
+            logger.error(f'S-API: Error inserting Farmer Event via Nexus API: {e}')
 
 
+    # FARMER
     @staticmethod
-    def insert_farmer_event(base_url, event):
+    def get_farmers(base_url):
         try:
-            local_url = f'{base_url}/insert/farmer_event'
-            response = requests.post(local_url, json=event)
+            local_url = f'{base_url}/farmers'
+            response = requests.get(local_url)
             json_data = response.json()
 
-            success = json_data.get('Success')
-            message = json_data.get('Message')
-
-            if success:
-                logger.info(f"NEXUS: {message}")
+            if response.status_code < 300:
                 return json_data
             else:
-                logger.error(f"NEXUS: {message}")
-                return False
+                logger.error(f"S-API: Error getting Farmers {json_data.get('error')}")
+                return None
 
         except Exception as e:
-            logger.error(f'NEXUS: Error inserting farmer event via Nexus API')
-            return False
-
-    # FARM
-    @staticmethod
-    def insert_farm(base_url, event):
-        try:
-            local_url = f'{base_url}/insert/farm'
-            response = requests.post(local_url, json=event)
-            json_data = response.json()
-
-            success = json_data.get('Success')
-            message = json_data.get('Message')
-
-            if success:
-                logger.info(f"API: {message}")
-            else:
-                logger.error(f"API: {message}")
-
-        except Exception as e:
-            logger.error(f'Error inserting farm via Nexus API')
-
-    # DATA
-    @staticmethod
-    def update_farm(base_url, event):
-        try:
-            local_url = f'{base_url}/update/farm'
-
-            response = requests.post(local_url, json=event)
-            json_data = response.json()
-
-            success = json_data.get('Success')
-            message = json_data.get('Message')
-
-            if success:
-                logger.info(f"API: {message}")
-            else:
-                logger.error(f"API: {message}")
-
-        except Exception as e:
-            logger.error(f'Error updating farm via Nexus API')
+            logger.error(f'S-API: Error getting Farmers via Nexus API')
 
     @staticmethod
-    def update_farmer(base_url, event):
+    def insert_farmer(base_url, data):
         try:
-            local_url = f'{base_url}/update/farmer'
+            local_url = f'{base_url}/farmers'
 
-            response = requests.post(local_url, json=event)
+            logger.info(data)
+            response = requests.post(local_url, json=data)
             json_data = response.json()
 
-            success = json_data.get('Success')
-            message = json_data.get('Message')
-
-            if success:
-                logger.info(f"API: {message}")
+            if response.status_code == 201:
+                logger.info("S-API: Farmer Inserted")
             else:
-                logger.error(f"API: {message}")
+                logger.error(f"S-API: Error inserting Farmer {json_data}")
 
         except Exception as e:
-            logger.error(f'Error updating farmer via Nexus API')
-
-
-
-    # DELETE
-    @staticmethod
-    def delete_all_plots(base_url):
-        try:
-            logger.info('Deleting all plots')
-            local_url = f"{base_url}/delete/plots/all"
-            response = requests.post(local_url)
-            json_data = response.json()
-
-            success = json_data.get('Success')
-            message = json_data.get('Message')
-
-            if success:
-                logger.info(f"API: {message}")
-            else:
-                logger.error(f"API: {message}")
-        except Exception as e:
-            logger.error(f'Error deleting all plots from Nexus API: {e}')
+            logger.error(f'S-API: Error inserting Farmer via Nexus API: {e}')
 
     @staticmethod
-    def delete_all_rewards(base_url):
+    def update_farmer(base_url, data):
         try:
-            logger.info('Deleting all rewards')
-            local_url = f"{base_url}/delete/rewards/all"
-            response = requests.post(local_url)
+            local_url = f"{base_url}/farmers/{data.get('name')}"
+
+            response = requests.put(local_url, json=data)
             json_data = response.json()
 
-            success = json_data.get('Success')
-            message = json_data.get('Message')
-
-            if success:
-                logger.info(f"API: {message}")
+            if response.status_code == 200:
+                logger.info("S-API: Farmer Updated")
             else:
-                logger.error(f"API: {message}")
+                logger.error(f"S-API: Error updating Farmer {json_data.get('error')}")
+
         except Exception as e:
-            logger.error(f'Error deleting all rewards from Nexus API: {e}')
-
-    @staticmethod
-    def delete_all_farmer_events(base_url):
-        try:
-            logger.info('Deleting all events')
-            local_url = f"{base_url}/delete/farmer_events/all"
-            response = requests.post(local_url)
-            json_data = response.json()
-
-            success = json_data.get('Success')
-            message = json_data.get('Message')
-
-            if success:
-                logger.info(f"API: {message}")
-            else:
-                logger.error(f"API: {message}")
-        except Exception as e:
-            logger.error(f'Error deleting all farmer events from Nexus API: {e}')
-
-    @staticmethod
-    def delete_all_node_events(base_url):
-        try:
-            logger.info('Deleting all events')
-            local_url = f"{base_url}/delete/node_events/all"
-            response = requests.post(local_url)
-            json_data = response.json()
-
-            success = json_data.get('Success')
-            message = json_data.get('Message')
-
-            if success:
-                logger.info(f"API: {message}")
-            else:
-                logger.error(f"API: {message}")
-        except Exception as e:
-            logger.error(f'Error deleting all node events from Nexus API: {e}')
+            logger.error(f'S-API: Error updating Farmer')
